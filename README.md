@@ -1,2 +1,15 @@
-# erc20-as-subnet-gas-token-tutorial
-How a C-chain native erc-20 token could be used as gas token for a subnet with using custom bridging
+# Basic Sample Hardhat Project
+
+This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+
+Try running some of the following tasks:
+
+```shell
+npx hardhat accounts
+npx hardhat compile
+npx hardhat clean
+npx hardhat test
+npx hardhat node
+node scripts/sample-script.js
+npx hardhat help
+```
