@@ -168,6 +168,7 @@ const main = async () => {
 				tx = await bridgeContracts[chain].bridge.mint(to, amount, nonce);
 			} else return;
 			await tx.wait();
+			console.log("transaction processed, token minted or released");
 		}
 	}, 5000);
 };
