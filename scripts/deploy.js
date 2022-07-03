@@ -28,53 +28,47 @@ module.exports = deploy = async () => {
 	const providers = initProviders();
 	const signers = initSigners(providers);
 
-	// Deploy AvaxToken
+	// Deploy AvaxToken it gives the total supply of the token to the msg.sender (which is the user that will bridge in our case)
 	const AvaxTokenFactory = new ethers.ContractFactory(
 		AVAX_TOKEN_ABI,
 		AVAX_TOKEN_BYTECODE,
-		signers.avax
+		signers.avax.user
 	);
-	const avaxToken = await AvaxTokenFactory.deploy("MyErc20", "MERC");
+	const avaxToken = await AvaxTokenFactory.deploy("MyErc20", "MERC20");
 	await avaxToken.deployTransaction.wait();
 	console.log("avax token deployed to: ", avaxToken.address);
 
-	// Deploy AvaxBridge
+	// Deploy AvaxBridge it makes msg.sender the admin of the bridge
 	const AvaxBridgeFactory = new ethers.ContractFactory(
 		AVAX_BRIDGE_ABI,
 		AVAX_BRIDGE_BYTECODE,
-		signers.avax
+		signers.avax.bridgeAdmin
 	);
 	const avaxBridge = await AvaxBridgeFactory.deploy(avaxToken.address);
 	await avaxBridge.deployTransaction.wait();
 	console.log("avax bridge deployed to: ", avaxBridge.address);
 
-	// Deploy SubnetBridge
+	// Deploy SubnetBridge it makes msg.sender the admin of the bridge
 	const SubnetBridgeFactory = new ethers.ContractFactory(
 		SUBNET_BRIDGE_ABI,
 		SUBNET_BRIDGE_BYTECODE,
-		signers.subnet
+		signers.subnet.bridgeAdmin
 	);
 	const subnetBridge = await SubnetBridgeFactory.deploy();
 	await subnetBridge.deployTransaction.wait();
 	console.log("subnet bridge deployed to: ", subnetBridge.address);
 
-	// TODO: Before setting bridge as the admin, mint some tokens for the current address to easily test burning
 	// Enable subnet bridge to mint native coins
 	const nativeMinter = new ethers.Contract(
 		SUBNET_NATIVE_MINTER_ADDRESS,
 		SUBNET_NATIVE_MINTER_ABI,
-		signers.subnet
+		signers.subnet.bridgeAdmin
 	);
 	const setNativeMinterTx = await nativeMinter.setEnabled(subnetBridge.address);
 	await setNativeMinterTx.wait();
 	console.log("allowed subnet bridge to mint native coins");
 
-	// Set AvaxBridge as the admin of the AvaxToken
-	const setAvaxBridgeAsAdminOfAvaxTokenTx = await avaxToken.setAdmin(
-		avaxBridge.address
-	);
-	await setAvaxBridgeAsAdminOfAvaxTokenTx.wait();
-	console.log("allowed avax bridge to mint avax tokens by making it the admin");
+	// TODO: Before setting bridge as the admin, mint some tokens for the current address to easily test burning
 
 	fs.writeFileSync(
 		"variables/contractAddresses.js",
@@ -84,5 +78,7 @@ module.exports = deploy = async () => {
 			SUBNET_BRIDGE_ADDRESS: "${subnetBridge.address}",
 		}`
 	);
-	console.log("Updated contract addresses");
+	console.log(
+		"updated contract addresses inside variables/contractAddresses.js"
+	);
 };

@@ -3,10 +3,24 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 module.exports = (providers) => {
-	const avaxSigner = new ethers.Wallet(process.env.PRIVATE_KEY, providers.avax);
-	const subnetSigner = new ethers.Wallet(
-		process.env.PRIVATE_KEY,
+	const avaxBridgeAdmin = new ethers.Wallet(
+		process.env.BRIDGE_ADMIN_PRIVATE_KEY,
+		providers.avax
+	);
+	const avaxBridgeUser = new ethers.Wallet(
+		process.env.BRIDGE_USER_PRIVATE_KEY,
+		providers.avax
+	);
+	const subnetBridgeAdmin = new ethers.Wallet(
+		process.env.BRIDGE_ADMIN_PRIVATE_KEY,
 		providers.subnet
 	);
-	return { avax: avaxSigner, subnet: subnetSigner };
+	const subnetBridgeUser = new ethers.Wallet(
+		process.env.BRIDGE_USER_PRIVATE_KEY,
+		providers.subnet
+	);
+	return {
+		avax: { bridgeAdmin: avaxBridgeAdmin, user: avaxBridgeUser },
+		subnet: { bridgeAdmin: subnetBridgeAdmin, user: subnetBridgeUser },
+	};
 };
