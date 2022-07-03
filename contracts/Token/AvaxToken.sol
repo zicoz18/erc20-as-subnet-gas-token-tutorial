@@ -12,6 +12,8 @@ interface IAvaxToken {
 }
 
 contract AvaxToken is ERC20, IAvaxToken {
+    // TODO: Rather than using mint-burn for both ways use lock-mint and burn release
+
     address public admin;
 
     modifier onlyAdmin() {
