@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-import "../Token/AvaxToken.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract AvaxBridge {
     address public admin;
     uint public nonce;
 
-    IAvaxToken public avaxToken;
+    IERC20 public avaxToken;
 
     mapping(uint => bool) public processedNonces;
 
@@ -32,18 +32,14 @@ contract AvaxBridge {
 
     constructor(address _token) {
         admin = msg.sender;
-        avaxToken = IAvaxToken(_token);
+        avaxToken = IERC20(_token);
     }
 
     function setAdmin(address newAdmin) external onlyAdmin {
         admin = newAdmin;
     }
 
-    function setTokenAdmin(address newTokenAdmin) external onlyAdmin {
-        avaxToken.setAdmin(newTokenAdmin);
-    }
-
-    function mint(
+    function release(
         address to,
         uint amount,
         uint subnetNonce
@@ -54,7 +50,9 @@ contract AvaxBridge {
         );
         processedNonces[subnetNonce] = true;
 
-        avaxToken.mint(to, amount);
+        // Bridge sends locked tokens to the `to` address therefore, relases the tokens
+        avaxToken.transfer(to, amount);
+
         emit Transfer(
             msg.sender,
             to,
@@ -65,10 +63,13 @@ contract AvaxBridge {
         );
     }
 
-    // User calls this function which burns their token.
-    // Relayer listens for this event and mints the token at the subnet for the address 'to'
-    function burn(address to, uint amount) external {
-        avaxToken.burn(msg.sender, amount);
+    // User calls this function which locks their token.
+    // Relayer listens for emitted event and mints the token at the subnet for the address 'to'
+    function lock(address to, uint amount) external {
+        // Send tokens from sender to bridge
+        // Do not forget, sender should have an allowence to do this
+        avaxToken.transferFrom(msg.sender, address(this), amount);
+
         emit Transfer(
             msg.sender,
             to,
