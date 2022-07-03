@@ -1,8 +1,10 @@
 const { ethers } = require("ethers");
-const rpcUrls = require("../constants/rpcUrls");
+const chains = require("../constants/chains");
 
 module.exports = () => {
-	const avaxProvider = new ethers.providers.JsonRpcProvider(rpcUrls.avax);
-	const subnetProvider = new ethers.providers.JsonRpcProvider(rpcUrls.subnet);
+	const avaxProvider = new ethers.providers.JsonRpcProvider(chains.avax.rpcUrl);
+	const subnetProvider = new ethers.providers.JsonRpcProvider(
+		chains.subnet.rpcUrl
+	);
 	return { avax: avaxProvider, subnet: subnetProvider };
 };

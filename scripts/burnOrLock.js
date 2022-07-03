@@ -1,7 +1,7 @@
 const { ethers } = require("ethers");
 const dotenv = require("dotenv");
 
-const rpcUrls = require("../constants/rpcUrls");
+const chains = require("../constants/chains");
 const {
 	AVAX_BRIDGE_ADDRESS,
 	AVAX_TOKEN_ADDRESS,
@@ -16,12 +16,11 @@ const AVAX_TOKEN_ABI =
 dotenv.config();
 
 module.exports = burnOrLock = async (from, amount) => {
-	// TODO: Avax Bridge için burn'lemeden önce allowence ver
 	let provider;
 	let signer;
 	let bridgeContract;
 	if (from === "avax") {
-		provider = new ethers.providers.JsonRpcProvider(rpcUrls.avax);
+		provider = new ethers.providers.JsonRpcProvider(chains.avax.rpcUrl);
 		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
 		const tokenContract = new ethers.Contract(
 			AVAX_TOKEN_ADDRESS,
@@ -59,7 +58,7 @@ module.exports = burnOrLock = async (from, amount) => {
 			ethers.utils.formatEther(newBridgeBalance)
 		);
 	} else if (from === "subnet") {
-		provider = new ethers.providers.JsonRpcProvider(rpcUrls.subnet);
+		provider = new ethers.providers.JsonRpcProvider(chains.subnet.rpcUrl);
 		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
 		bridgeContract = new ethers.Contract(
 			SUBNET_BRIDGE_ADDRESS,
