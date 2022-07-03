@@ -6,7 +6,7 @@ const AVAX_BRIDGE_ABI =
 const {
 	AVAX_BRIDGE_ADDRESS,
 	SUBNET_BRIDGE_ADDRESS,
-} = require("../constants/contractAddresses");
+} = require("../variables/contractAddresses");
 
 module.exports = (signers) => {
 	const avaxBridge = new ethers.Contract(

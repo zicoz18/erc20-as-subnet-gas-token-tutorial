@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 
 const {
 	SUBNET_NATIVE_MINTER_ADDRESS,
-} = require("../constants/contractAddresses");
+} = require("../constants/nativeMinterAddress");
 const AVAX_TOKEN_BYTECODE =
 	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").bytecode;
 const AVAX_TOKEN_ABI =
@@ -58,6 +58,7 @@ module.exports = deploy = async () => {
 	await subnetBridge.deployTransaction.wait();
 	console.log("subnet bridge deployed to: ", subnetBridge.address);
 
+	// TODO: Before setting bridge as the admin, mint some tokens for the current address to easily test burning
 	// Enable subnet bridge to mint native coins
 	const nativeMinter = new ethers.Contract(
 		SUBNET_NATIVE_MINTER_ADDRESS,
@@ -76,12 +77,11 @@ module.exports = deploy = async () => {
 	console.log("allowed avax bridge to mint avax tokens by making it the admin");
 
 	fs.writeFileSync(
-		"constants/contractAddresses.js",
+		"variables/contractAddresses.js",
 		`module.exports = {
 			AVAX_TOKEN_ADDRESS: "${avaxToken.address}",
 			AVAX_BRIDGE_ADDRESS: "${avaxBridge.address}",
 			SUBNET_BRIDGE_ADDRESS: "${subnetBridge.address}",
-			SUBNET_NATIVE_MINTER_ADDRESS: "0x0200000000000000000000000000000000000001",
 		}`
 	);
 	console.log("Updated contract addresses");

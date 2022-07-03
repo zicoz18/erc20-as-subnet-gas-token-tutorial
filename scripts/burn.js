@@ -6,7 +6,7 @@ const {
 	AVAX_BRIDGE_ADDRESS,
 	AVAX_TOKEN_ADDRESS,
 	SUBNET_BRIDGE_ADDRESS,
-} = require("../constants/contractAddresses");
+} = require("../variables/contractAddresses");
 const SUBNET_BRIDGE_ABI =
 	require("../artifacts/contracts/Bridge/SubnetBridge.sol/SubnetBridge").abi;
 const AVAX_BRIDGE_ABI =

@@ -2,7 +2,7 @@ const { ethers } = require("ethers");
 const dotenv = require("dotenv");
 
 const rpcUrls = require("../constants/rpcUrls");
-const { AVAX_TOKEN_ADDRESS } = require("../constants/contractAddresses");
+const { AVAX_TOKEN_ADDRESS } = require("../variables/contractAddresses");
 const AVAX_TOKEN_ABI =
 	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").abi;
 dotenv.config();
