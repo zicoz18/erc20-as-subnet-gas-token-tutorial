@@ -2,9 +2,13 @@ const fs = require("fs");
 const { ethers } = require("ethers");
 const dotenv = require("dotenv");
 
+/* Get NativeMinter address from constants */
 const {
 	SUBNET_NATIVE_MINTER_ADDRESS,
 } = require("../constants/nativeMinterAddress");
+
+/* Get ABIs of the contracts directly from the artifact folder created by hardhat after each compilation */
+/* Get bytecodes of the contracts direclty from the artifact folder created by hardhat after each compilation */
 const AVAX_TOKEN_BYTECODE =
 	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").bytecode;
 const AVAX_TOKEN_ABI =
@@ -20,15 +24,20 @@ const SUBNET_BRIDGE_ABI =
 const SUBNET_NATIVE_MINTER_ABI =
 	require("../artifacts/contracts/Token/INativeMinter.sol/NativeMinterInterface").abi;
 
+/* Get needed util functions */
 const initProviders = require("../utils/initProviders");
 const initSigners = require("../utils/initSigners");
 dotenv.config();
 
+/* Deploy script that allow us to deploy: 
+			AvaxToken, AvaxBridge, SubnetBridge contract
+And set SubnetBridge contract as a `Minter` for the NativeMinter precompile */
 module.exports = deploy = async () => {
 	const providers = initProviders();
 	const signers = initSigners(providers);
 
-	// Deploy AvaxToken it gives the total supply of the token to the msg.sender (which is the user that will bridge in our case)
+	/* Deploy AvaxToken it gives the total supply of the token to the msg.sender 
+	(which is the user that will bridge in our case) */
 	const AvaxTokenFactory = new ethers.ContractFactory(
 		AVAX_TOKEN_ABI,
 		AVAX_TOKEN_BYTECODE,
@@ -38,7 +47,8 @@ module.exports = deploy = async () => {
 	await avaxToken.deployTransaction.wait();
 	console.log("avax token deployed to: ", avaxToken.address);
 
-	// Deploy AvaxBridge it makes msg.sender the admin of the bridge
+	/* Deploy AvaxBridge it makes msg.sender the admin of the bridge 
+	(which is the bridgeAdmin signer) */
 	const AvaxBridgeFactory = new ethers.ContractFactory(
 		AVAX_BRIDGE_ABI,
 		AVAX_BRIDGE_BYTECODE,
@@ -48,7 +58,8 @@ module.exports = deploy = async () => {
 	await avaxBridge.deployTransaction.wait();
 	console.log("avax bridge deployed to: ", avaxBridge.address);
 
-	// Deploy SubnetBridge it makes msg.sender the admin of the bridge
+	/* Deploy SubnetBridge it makes msg.sender the admin of the bridge 
+	(which is the bridgeAdmin signer)*/
 	const SubnetBridgeFactory = new ethers.ContractFactory(
 		SUBNET_BRIDGE_ABI,
 		SUBNET_BRIDGE_BYTECODE,
@@ -58,7 +69,7 @@ module.exports = deploy = async () => {
 	await subnetBridge.deployTransaction.wait();
 	console.log("subnet bridge deployed to: ", subnetBridge.address);
 
-	// Enable subnet bridge to mint native coins
+	/* Give `Minter` role to SubnetBridge contract so that it can mint native token */
 	const nativeMinter = new ethers.Contract(
 		SUBNET_NATIVE_MINTER_ADDRESS,
 		SUBNET_NATIVE_MINTER_ABI,
@@ -68,8 +79,10 @@ module.exports = deploy = async () => {
 	await setNativeMinterTx.wait();
 	console.log("allowed subnet bridge to mint native coins");
 
-	// TODO: Before setting bridge as the admin, mint some tokens for the current address to easily test burning
-
+	/* Whenever we run this deploy script deployed contract addresses will be changed.
+	Rather than manually updating them we write the updated address to the `variables/contractAddress.js`
+	Inside our code, whenever we try to access address of a file we use this file as the source of truth.
+	*/
 	fs.writeFileSync(
 		"variables/contractAddresses.js",
 		`module.exports = {

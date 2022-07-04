@@ -6,6 +6,6 @@ module.exports = {
 	subnet: {
 		chainId: 707070,
 		rpcUrl:
-			"http://127.0.0.1:31874/ext/bc/2qA55SY4gNTvmemg74YJQBUBae887m47mNkfMPAAoJnb26m97q/rpc",
+			"http://127.0.0.1:20553/ext/bc/2RMpFNijmjCDTtiLLE68LLNEb5DjqnSd4RHfuE7iRwVCbpRc4Y/rpc",
 	},
 };
