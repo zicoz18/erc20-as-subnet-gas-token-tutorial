@@ -1311,3 +1311,38 @@ As you can also see from the comments of the relayer file there are different wa
       "-1" as block number means do not processes any old blocks for that chain.
       Therefore, `node ./relayer.js -1 <subnetBlockNumber>` will only process events for subnet.
       If you want to start the relayer to process an old burn or lock event just on one chain, current way of running is what you are looking for
+      
+### Testing the relayer
+
+#### Test relayer 
+In this video on the left terminal I am using our custom scripts to interact with chains and on the right terminal I am using our relay to create the cross chain communication.
+
+https://user-images.githubusercontent.com/65618011/177062973-b6561d79-79df-47af-ae3e-5368ab38e1c0.mov
+
+##### What happens on the video?
+* Check balances on both chains
+* Start the relayer
+* An already processed event appears on the console of the relayer therefore it does not get processed
+* Check the balances to make sure already processed event is not processed
+* Lock 20 ERC20s token from avax and see the updated balances of user and the bridge on avax
+* Relayer observes the transaction and sends a transaction to mint native tokens on subnet
+* Check the balances on both subnet and avax. As expected our subnet native token balance increases by 20
+* Burn 5 native tokens from subnet and see the updated balance of the user
+* Relayer observers the transaction and sends a transaction to release ERC20 tokens on avax
+* Check balance on both subnet and avax. As expected our ERC20 balance increases by 5 and bridge's decreases by 5
+
+#### Test relayer for old events
+
+https://user-images.githubusercontent.com/65618011/177063396-d5f42da1-8224-42bd-bff7-0086e963fcb9.mov
+
+##### What happens on the video?
+* Start by a lock transaction from avax with amount 40. As stated in the video this transaction was sent when relayer was not working. Therefore, it is not processed and it will not be processed when we start the relayer with `node relayer.js` because there has been many blocks after it
+* Check balances on both chains
+* Start the relayer with `node relayer.js` to show that event is not getting processed. Printed events are events happened on subnet. Since there is no blocks building on my local subnet other than my own, my old burns are considered old and therefore shown
+* Start the relayer with `node relayer.js <blockNumber>` ton show that event will be processed and will be printed as "OLD: "
+* Check balances on both chains to confirm that old lock event on avax has been processed by relayer and tokens have been minted on avax
+
+
+
+
+
