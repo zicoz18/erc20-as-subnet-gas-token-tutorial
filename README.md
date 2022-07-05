@@ -1353,14 +1353,14 @@ https://user-images.githubusercontent.com/65618011/177063396-d5f42da1-8224-42bd-
 Things to check out;
 
 - Error while compiling contracts
-- You have updated the compiler version to 0.8.7 from harhat.config.js.
-- You have run `npm i @openzeppelin/contracts`.
+  - You have updated the compiler version to 0.8.7 from harhat.config.js.
+  - You have run `npm i @openzeppelin/contracts`.
 - Error while running scripts
-- Both accounts on both chains have some native token so that they can send transactions.
-- Folder structures and file names are as suggested. In our scripts we access the contract abis and bytecodes directly from the files that are created by hardhat. Those files are created according to your file structure and if you changed the structure, imports might fail.
-- You have your private keys inside the .env file and you have downloaded dotenv package by running `npm i dotenv`.
-- Your subnet has NativeMinter precompile with bridgeAdmin account as the admin.
-- You have created a contractAddresses.js file inside the variables folder. If you did not create this file, deploy.js would fail.
+  - Both accounts on both chains have some native token so that they can send transactions.
+  - Folder structures and file names are as suggested. In our scripts we access the contract abis and bytecodes directly from the files that are created by hardhat. Those files are created according to your file structure and if you changed the structure, imports might fail.
+  - You have your private keys inside the .env file and you have downloaded dotenv package by running `npm i dotenv`.
+  - Your subnet has NativeMinter precompile with bridgeAdmin account as the admin.
+  - You have created a contractAddresses.js file inside the variables folder. If you did not create this file, deploy.js would fail.
 
 ## Conclusion
 
