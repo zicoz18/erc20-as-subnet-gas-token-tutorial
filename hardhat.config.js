@@ -26,7 +26,7 @@ task("burnOrLock", "Burn or lock token from a network")
 /* Create balance task  */
 task("balance", "Get token balance from a network")
 	/* Add `from` parameter indication the used network which is either avax or subnet */
-	.addParam("from", "Network to burn from")
+	.addParam("from", "Network to get balance from")
 	.setAction(async (taskArgs, hre) => {
 		await balance(taskArgs.from).catch((error) => {
 			console.error(error);

@@ -1,6 +1,6 @@
 # How to use a ERC-20 C-chain token as the gas fee token
 
-## Introduction
+## Introduction
 
 Purpose of this tutorial is to use a ERC-20 C-chain token as the gas fee token on a subnet by deploying a bridge. We will not be using any bridge provider, instead we will be implementing our own bridge, to truly understand how bridges work and how to modify them to our needs. Bridge we will be implementing is a [trusted](#trusted-and-trustless-bridges) bridge and it uses [lock-mint](#lock-mint-and-burn-release-mechanisms) mechanism to transfer assets from C-chain to subnet and [burn-release](#lock-mint-and-burn-release-mechanisms) mechanism from subnet to C-chain.
 
@@ -14,8 +14,8 @@ DISCLAIMER: The bridge implementation in this tutorial is a proof of concept and
   - In this tutorial we will be using a local subnet. Refer to [this](https://docs.avax.network/subnets/create-a-local-subnet), to deploy your local subnet.
 - Basic knowledge of [Hardhat](https://hardhat.org/).
   - We will be writing our code in a Hardhat development environment. We will write custom scripts to automate our job and add those scripts as tasks to hardhat.
-- Basic knowledge of [Ethers js](https://docs.ethers.io/v5/).
-  - We will be interacting with both Avalanche Fuji chain and our subnet using ethers js.
+- General knowledge of [Ethers js](https://docs.ethers.io/v5/).
+  - We will be interacting with both Avalanche Fuji chain and our subnet using ethers js. We will be initalizing providers, signers, contract and interacting with contract using ethers js.
 - Basic knowledge of [Solidity](https://docs.soliditylang.org/en/v0.8.7/).
   - We will be writing our own Bridge and Token contracts using Solidity.
 
@@ -28,7 +28,7 @@ Before writing any code, we should understand how bridges work and what type of 
 - For our bridge, source chain represents C-chain and destination chain represents Subnet.
 - A ERC-20 token on source chain and a native gas token on our destination chain that is mintable, using NativeMinter precompile.
 - Bridge contracts on both chains with custom behaviors for ERC-20 and NativeMinter precompile.
-- An off-chain relayer which is an application that listens to events on both chains. On these events, sends transactions to alternate chain's bridge contract. For more detail refer to [Relayer](#relayer) part.
+- An off-chain relayer which is an application that listens to events on both chains. On these events, sends transactions to other chain's bridge contract. For more detail refer to [Relayer](#relayer) part.
 
 ### Trusted and Trustless Bridges
 
@@ -36,21 +36,21 @@ In short, bridges allow cross-chain transfers and there are 2 main type of bridg
 
 ### Lock-Mint and Burn-Release Mechanisms
 
-Reason we have chosen these mechanisms is because our ERC-20 token might not be mintable and we are sure that our subnet's gas token is mintable.
+Reason we have choosen these mechanisms is because our ERC-20 token might not be mintable and we are sure that our subnet's gas token is mintable.
 
 #### How Lock-Mint works:
 
 - User deposits tokens to the bridge contract, effectively locking it.
-- Relayer detects the transfer event and sends a transaction to the bridge contract that is on the alternate chain.
-- Bridge contract on the alternative chain mints the token and sends it to the given address.
+- Relayer detects the transfer event and sends a transaction to the bridge contract that is on the other chain.
+- Bridge contract on the alternave chain mints the token and sends it to the given address.
 
 We are using Lock-Mint mechanism when we bridge our token from C-chain to Subnet.
 
-#### How Burn-Release works:
+#### How Burn-Release works:
 
 - User deposits tokens to the bridge contract, bridge contract send them to the 0 address, effectively burning it.
-- Relayer detects the transfer event and sends a transaction to the bridge contract that is on the alternate chain.
-- Bridge contract on the alternate chain sends the token to the given address, effectively releasing it.
+- Relayer detects the transfer event and sends a transaction to the bridge contract that is on the other chain.
+- Bridge contract on the alaternate chain sends the token to the given address, effectively releasing it.
 
 We are using Burn-Release mechanism when we bridge our token from Subnet to C-chain.
 
@@ -58,7 +58,7 @@ We are using Burn-Release mechanism when we bridge our token from Subnet to C-ch
 
 #### Relayer
 
-Relayer is an off-chain application that listens for events on both chains. Upon events it sends transaction to alternate chain's bridge contract. It has the private key of the bridge contracts' admin account allowing it to mint or release tokens.
+Relayer is an off-chain application that listens for events on both chains. Upon events it sends transaction to other chain's bridge contract. It has the private key of the bridge contracts' admin account allowing it to mint or release tokens.
 
 #### Contracts
 
@@ -76,7 +76,7 @@ We will have bridge contracts on both chains. Users will send transaction to the
 
 Let's start by initializing our workspace with [Hardhat](https://hardhat.org/).
 
-To initialize project, run:
+To initalize project, run:
 
 ```bash
 npx hardhat init
@@ -86,11 +86,15 @@ Select `Create a basic sample project` and walk through creating the project.
 
 ## Create Contracts
 
+Delete `Greeter.sol` file
+
 To use openzeppelin contracts in our contracts, run:
 
 ```bash
 npm i @openzeppelin/contracts
 ```
+
+Make sure to update your solidity compiler version inside `hardhat.config.js` to 0.8.7. It is by default set to 0.8.4 and our contracts are written for 0.8.7 and above.
 
 ### Create Token Contracts
 
@@ -197,7 +201,7 @@ contract AvaxBridge {
         _;
     }
 
-    /* Constructor that sets admin as the sender and initializes the ERC20 token inside contract */
+    /* Contstructor that sets admin as the sender and initializes the ERC20 token inside contract */
     constructor(address _token) {
         admin = msg.sender;
         avaxToken = IERC20(_token);
@@ -216,11 +220,11 @@ contract AvaxBridge {
     ) external onlyAdmin {
         require(
             processedNonces[subnetNonce] == false,
-            "nonce already processed"
+            "nonce already proccessed"
         );
         processedNonces[subnetNonce] = true;
 
-        /* Bridge sends locked tokens to the `to` address therefore, releases the tokens */
+        /* Bridge sends locked tokens to the `to` address therefore, relases the tokens */
         avaxToken.transfer(to, amount);
 
         emit Transfer(
@@ -242,7 +246,7 @@ contract AvaxBridge {
         /* Do not forget: sender should approve bridge address to do this */
         avaxToken.transferFrom(msg.sender, address(this), amount);
 
-        /* Event that is emitted for relayer to process */
+        /* Event that is emmited for relayer to process */
         emit Transfer(
             msg.sender,
             to,
@@ -311,7 +315,7 @@ contract SubnetBridge {
         _;
     }
 
-    /* Constructor that sets admin as the sender */
+    /* Contstructor that sets admin as the sender */
     constructor() {
         admin = msg.sender;
     }
@@ -329,7 +333,7 @@ contract SubnetBridge {
     ) external onlyAdmin {
         require(
             processedNonces[avaxNonce] == false,
-            "nonce already processed"
+            "nonce already proccessed"
         );
         processedNonces[avaxNonce] = true;
 
@@ -354,7 +358,7 @@ contract SubnetBridge {
         (bool sent, ) = payable(burnAddress).call{value: msg.value}("");
         require(sent, "Failed to send native token");
 
-        /* Event that is emitted for relayer to process */
+        /* Event that is emmited for relayer to process */
         emit Transfer(
             msg.sender,
             to,
@@ -476,7 +480,7 @@ module.exports = (providers) => {
 
 **ALERT**
 
-> As you see, we have used `process.env.<..._PRIVATE_KEY>`. Reason behind that is we do not want to expose our private keys inside our code. To use this, first you have to run `npm i dotenv` to install the related package. Afterwards put in the private keys of your accounts as follows,
+> As you see, we have used `process.env.<..._PRIVATE_KEY>`. Reason behind that is we do not want to expose our private keys inside our code. To use this, first you have to run `npm i dotenv` to install the related package. At the root of the project create a file named `.env`. Afterwards put in the private keys of your accounts as follows,
 
 ```bash
 BRIDGE_ADMIN_PRIVATE_KEY=<private-key-for-admin>
@@ -484,7 +488,7 @@ BRIDGE_USER_PRIVATE_KEY=<private-key-for-user>
 ```
 
 - Make sure that both accounts are funded on both chains so that they can send transactions.
-- Make sure that you have `.env` inside your `.gitignore` file so that you do not upload this file to git.
+- Make sure that `.env` file is included in your `.gitignore` file so that you do not upload this file to git.
 
 **ALERT**
 
@@ -540,13 +544,13 @@ module.exports = (signers) => {
 
 We could directly create the off-chain relayer but it would be too hard to test it. Therefore, we are creating these helper scripts to quickly interact with contracts and test if relayer works as expected.
 
-We are using [Hardhat Tasks](https://hardhat.org/guides/create-task) to run our scripts in this tutorial. Unless stated otherwise we will be writing the script, updating the `hardhat.config.js` to add our new script as a hardhat task.
+We are using [Hardhat Tasks](https://hardhat.org/guides/create-task) to run our scripts in this tutorial. We will be writing the script, updating the `hardhat.config.js` to add our new script as a hardhat task.
 
 #### Deploy script
 
 ##### Write deploy script
 
-Create `deploy.js` file inside `scripts` folder
+Create `deploy.js` file inside `scipts` folder
 
 deploy.js
 
@@ -561,7 +565,7 @@ const {
 } = require("../constants/nativeMinterAddress");
 
 /* Get ABIs of the contracts directly from the artifact folder created by hardhat after each compilation */
-/* Get bytecodes of the contracts directly from the artifact folder created by hardhat after each compilation */
+/* Get bytecodes of the contracts direclty from the artifact folder created by hardhat after each compilation */
 const AVAX_TOKEN_BYTECODE =
 	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").bytecode;
 const AVAX_TOKEN_ABI =
@@ -673,7 +677,7 @@ task(
 ...
 ```
 
-After adding the task and removing unnecessary parts, your `hardhat.config.js` should look similar to following:
+After adding the task and removing unnecessarry parts, your `hardhat.config.js` should look similar to following:
 
 ```js
 const { task } = require("hardhat/config");
@@ -785,7 +789,7 @@ require("./scripts/balance");
 /* Create balance task  */
 task("balance", "Get token balance from a network")
     /* Add `from` parameter indication the used network which is either avax or subnet */
-	.addParam("from", "Network to burn from")
+	.addParam("from", "Network to get balance from")
 	.setAction(async (taskArgs, hre) => {
 		await balance(taskArgs.from).catch((error) => {
 			console.error(error);
@@ -809,7 +813,7 @@ or
 npx hardhat balance --from subnet
 ```
 
-After running the script you should see balances printed out in the command line. If you have used `--from subnet` you will only see the native token balance of the user. If you have used `--from avax` you will see the ERC20 balances of both user and the bridge contract.
+After running the script you should see balances printed out in the comman line. If you have used `--from subnet` you will only see the native token balance of the user. If you have used `--from avax` you will see the ERC20 balances of both user and the bridge contract.
 
 Balance value seen on the subnet depends on how you have funded your address. But balance values on avax should look like the following:
 
@@ -930,7 +934,7 @@ module.exports = burnOrLock = async (from, amount) => {
 
 ##### Update hardhat.config.js file
 
-To add `burnOrRelease` script as a hardhat task add the following code inside `hardhat.config.js`
+To add `burnOrLock` script as a hardhat task add the following code inside `hardhat.config.js`
 
 ```js
 /* Import task from hardhat config */
@@ -944,7 +948,7 @@ task("burnOrLock", "Burn or lock token from a network")
 	/* Add `from` parameter indication the used network which is either avax or subnet */
 	.addParam("from", "Network to burn or lock from")
 	/* Add `amount` parameter indication the amount to burn or lock */
-	.addParam("amount", "Amount to burn or lock")
+	.addParam("amount", "Amount to burn or lock in ethers")
 	.setAction(async (taskArgs, hre) => {
 		await burnOrLock(taskArgs.from, taskArgs.amount).catch((error) => {
 			console.error(error);
@@ -959,18 +963,18 @@ task("burnOrLock", "Burn or lock token from a network")
 To run burnOrRelease script, run:
 
 ```bash
-npx hardhat burnOrRelease --from avax --amount <amount-of-token-to-burn-or-lock-in-ether>
+npx hardhat burnOrLock --from avax --amount <amount-of-token-to-burn-or-lock-in-ether>
 ```
 
 or
 
 ```bash
-npx hardhat burnOrRelease --from subnet --amount <Example value: 4>
+npx hardhat burnOrLock --from subnet --amount <Example value: 4>
 ```
 
 **ALERT**
 
-> When you try to run the first scripts `... --from avax --amount 10` if user has 10 ERC20 tokens it will work and you will see the updated balances as expected on avax network. User decremented by 10, bridge incremented by 10. But you would not see that user's native token balance on subnet is increase although there are bridge contracts, there is no relayer application to establish the communication in between them. Therefore, user locked its tokens but its balance on subnet did not change. It is same for the second script.
+> When you try to run the first scripts `... --from avax --amount 10` if user has 10 ERC20 tokens it will work and you will see the updated balances as expected on avax network. User decremented by 10, bridge incremented by 10. But you would not see that user's native token balance on subnet is increase. Although there are bridge contracts, there is no relayer application to establish the communication inbetween them. Therefore, user locked its tokens but its balance on subnet did not change. It is same for the second script where user burns tokens on subnet but did not get any new tokens on avax c-chain. Be aware, if user account does not have and native token balance on subnet second script would throw an error.
 
 **ALERT**
 
@@ -981,7 +985,7 @@ Create a `relayer.js` file at root folder of the project.
 relayer.js
 
 ```js
-cconst { ethers } = require("ethers");
+const { ethers } = require("ethers");
 const dotenv = require("dotenv");
 
 /* Get needed util functions */
@@ -1015,13 +1019,13 @@ When run with `node ./relayer.js -1 <subnetBlockNumber>` or `node ./relayer.js <
 	and will iterate through the next 10 blocks for event. Will processes observed event
 	"-1" as block number means do not processes any old blocks for that chain.
 	Therefore, `node ./relayer.js -1 <subnetBlockNumber>` will only process events for subnet.
-	If you want to start the relayer to process an old burn or lock event just on one chain, current way of running is what you are looking for
+	If tou want to start the relayer to process an old burn or lock event just on one chain, current way of running is what you are looking for
 */
 const main = async () => {
 	/* If there is a need for sending transactions
 		Add it to the txs array.
 		Because of the `setInterval()` relayer will send transactions every 5 seconds if at least 1 transaction exists
-		We wait 5 seconds in between transactions to make sure we do not replace our own transactions before they are mined.
+		We wait 5 seconds inbetween transactions to make sure we do not replace our own transactions before they are mined.
 	*/
 	let txs = [];
 
@@ -1032,7 +1036,7 @@ const main = async () => {
 
 	/* For Avax
 		Relayer gets command line arguments
-		If command line argument exists and it is not -1
+		If commandline argument exists and it is not -1
 		Then process next 10 blocks and process events from these block number
 	*/
 	if (process.argv[2] && parseInt(process.argv[2]) !== -1) {
@@ -1079,9 +1083,9 @@ const main = async () => {
 					)}, nonce: ${nonce}`
 				);
 				/* Check if nonce is processed or not */
-				const isProcessed =
+				const isProccessed =
 					await localBridgeContracts.subnet.admin.processedNonces(nonce);
-				if (!isProcessed) {
+				if (!isProccessed) {
 					/* If not processed add tx to txs array */
 					console.log("OLD: is not processed, will mint on subnet\n");
 					txs.push(event);
@@ -1142,9 +1146,9 @@ const main = async () => {
 					)}, nonce: ${nonce}`
 				);
 				/* Check if nonce is processed or not */
-				const isProcessed =
+				const isProccessed =
 					await localBridgeContracts.subnet.admin.processedNonces(nonce);
-				if (!isProcessed) {
+				if (!isProccessed) {
 					/* If not processed add tx to txs array */
 					console.log("OLD: is not processed, will release on subnet\n");
 					txs.push(event);
@@ -1156,7 +1160,7 @@ const main = async () => {
 	}
 
 	/* With above 2 functions we have processed old blocks */
-	console.log("\n\nOld events processed");
+	console.log("\n\nOld events proccessed");
 
 	/* Now we subscribe to bridgeContract events on both chains
 		Which allows us to run a function whenever a new event is observed
@@ -1182,10 +1186,10 @@ const main = async () => {
 					)}, date: ${date}, nonce: ${nonce}, step: ${step}`
 				);
 				/* Check if nonce is processed or not */
-				const isProcessed = await bridgeContracts.subnet.admin.processedNonces(
+				const isProccessed = await bridgeContracts.subnet.admin.processedNonces(
 					nonce
 				);
-				if (!isProcessed) {
+				if (!isProccessed) {
 					/* If not processed add tx to txs array */
 					console.log("is not processed, will mint on subnet\n");
 					txs.push({ chain: "subnet", to, amount, nonce });
@@ -1216,10 +1220,10 @@ const main = async () => {
 					)}, date: ${date}, nonce: ${nonce}, step: ${step}`
 				);
 				/* Check if nonce is processed or not */
-				const isProcessed = await bridgeContracts.avax.admin.processedNonces(
+				const isProccessed = await bridgeContracts.avax.admin.processedNonces(
 					nonce
 				);
-				if (!isProcessed) {
+				if (!isProccessed) {
 					/* If not processed add tx to txs array */
 					console.log("is not processed, will release on avax\n");
 					txs.push({ chain: "avax", to, amount, nonce });
@@ -1232,13 +1236,13 @@ const main = async () => {
 	console.log("Started listening for new events\n\n");
 
 	/* This function gets to run each 5 seconds and it sends `mint` or `release` transactions to the bridge contract
-		We wait 5 seconds in between transactions to make sure we do not replace our own transactions before they are mined.
+		We wait 5 seconds inbetween transactions to make sure we do not replace our own transactions before they are mined.
 	*/
 	setInterval(async () => {
 		/* If there is not transactions to send do nothing */
 		if (txs.length > 0) {
 			/* If provided blockNumbers for avax or subnet are close to current blocks of the chains
-			 Then a transaction might get added to the txs array twice. Once processing old blocks (but pretty recent) and once subscribed to new events.
+			 Then a transaction might get added to the txs array twice. Once processesing old blocks (but pretty recent) and once subscribed to new events.
 			 */
 			txs = txs.filter(
 				(value, index, self) =>
@@ -1269,12 +1273,11 @@ main().catch((error) => {
 	console.error(error);
 	process.exitCode = 1;
 });
-
 ```
 
 ### Running the Relayer
 
-As you can also see from the comments of the relayer file there are different ways to start the relayer application
+As you can also see from the comments of the relayer file. There are different ways to start the relayer application
 
 - Different ways of running
 
@@ -1344,3 +1347,30 @@ https://user-images.githubusercontent.com/65618011/177063396-d5f42da1-8224-42bd-
 - Start the relayer with `node relayer.js` to show that event is not getting processed. Printed events are events happened on subnet. Since there is no blocks building on my local subnet other than my own, my old burns are considered old and therefore shown
 - Start the relayer with `node relayer.js <blockNumber>` ton show that event will be processed and will be printed as "OLD: "
 - Check balances on both chains to confirm that old lock event on avax has been processed by relayer and tokens have been minted on avax
+
+### Trobule Shoot Common Issues
+
+Things to check out;
+
+- Error while compiling contracts
+  - You have updated compiler version to 0.8.7 from harhat.config.js.
+  - You have run `npm i @openzeppelin/contracts`.
+- Error while running scripts
+  - Both accounts on both chains have some native token so that they can send transactions.
+  - Folder structures and file names are as suggested. In our scripts we access the contract abis and bytecodes directly from the files that are created by hardhat. Those files are created according to your file structure and if you changed the strcuture, imports might fail.
+  - You have your private keys inside .env file and you have downloaded dotenv package by running `npm i dotenv`.
+  - Your subnet has NativeMinter precompile with bridgeAdmin account as the admin.
+  - You have created contractAddresses.js file inside variables folder. If you did not created this file, deploy.js would fail.
+
+## Conclusion
+
+Congratulations! You have created a bridge between avax C-chain and your subnet to use an ERC-20 token as a gas token.
+
+Things achieved:
+
+- Understood general design of bridges.
+- Implemented bridge contracts.
+- Used NativeMinter precompile.
+- Created a relayer application to communicate with both chains.
+- Tested relayer to make sure communication between chains are established.
+- Used ERC-20 token as the gas token on the subnet.
