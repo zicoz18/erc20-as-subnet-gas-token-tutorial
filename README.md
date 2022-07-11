@@ -9,15 +9,15 @@ DISCLAIMER: The bridge implementation in this tutorial is a proof of concept and
 ## Prerequisites
 
 - Basic knowledge of [Precompiles](https://docs.avax.network/subnets/customize-a-subnet#precompiles).
-- We will be using [NativeMinter](https://docs.avax.network/subnets/customize-a-subnet#minting-native-coins) precompile on our subnet. Familiarity with precompiles and knowledge of NativeMinter precompile will be assumed.
+	- We will be using [NativeMinter](https://docs.avax.network/subnets/customize-a-subnet#minting-native-coins) precompile on our subnet. Familiarity with precompiles and knowledge of NativeMinter precompile will be assumed.
 - Having an up and running subnet which uses NativeMinter precompile.
-- In this tutorial we will be using a local subnet. Refer to [this](https://docs.avax.network/subnets/create-a-local-subnet), to deploy your local subnet.
+	- In this tutorial we will be using a local subnet. Refer to [this](https://docs.avax.network/subnets/create-a-local-subnet), to deploy your local subnet.
 - Basic knowledge of [Hardhat](https://hardhat.org/).
-- We will be writing our code in a Hardhat development environment. We will write custom scripts to automate our job and add those scripts as tasks to hardhat.
+	- We will be writing our code in a Hardhat development environment. We will write custom scripts to automate our job and add those scripts as tasks to hardhat.
 - General knowledge of [Ethers js](https://docs.ethers.io/v5/).
-- We will be interacting with both the Avalanche Fuji chain and our subnet using ethers js. We will be initializing providers, signers, contracts and interacting with contracts using ethers js.
+	- We will be interacting with both the Avalanche Fuji chain and our subnet using ethers js. We will be initializing providers, signers, contracts and interacting with contracts using ethers js.
 - Basic knowledge of [Solidity](https://docs.soliditylang.org/en/v0.8.7/).
-- We will be writing our own Bridge and Token contracts using Solidity.
+	- We will be writing our own Bridge and Token contracts using Solidity.
 
 ## General Concepts
 
