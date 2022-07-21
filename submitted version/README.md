@@ -108,52 +108,13 @@ Create a `Token` folder inside `contracts` folder
 
 Create `AvaxToken.sol` file inside `Token` folder
 
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
-
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-// A standard ERC20 token with maxSupply of 1 million
-contract AvaxToken is ERC20 {
-    uint public MAX_SUPPLY = 1000000 ether;
-
-    // maxSupply is sent to the creator of the token
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-        _mint(msg.sender, MAX_SUPPLY);
-    }
-}
-```
+[AvaxToken.sol](./codeSnippets/contracts/Token/AvaxToken.md)
 
 #### Native Minter Interface
 
 Create `INativeMinter.sol` file inside `Token` folder
 
-```solidity
-// (c) 2022-2023, Ava Labs, Inc. All rights reserved.
-// See the file LICENSE for licensing terms.
-
-// SPDX-License-Identifier: MIT
-
-pragma solidity >=0.8.0;
-
-interface NativeMinterInterface {
-    // Set [addr] to have the admin role over the minter list
-    function setAdmin(address addr) external;
-
-    // Set [addr] to be enabled on the minter list
-    function setEnabled(address addr) external;
-
-    // Set [addr] to have no role over the minter list
-    function setNone(address addr) external;
-
-    // Read the status of [addr]
-    function readAllowList(address addr) external view returns (uint256);
-
-    // Mint [amount] number of native coins and send to [addr]
-    function mintNativeCoin(address addr, uint256 amount) external;
-}
-```
+[INativeMinter.sol](./codeSnippets/contracts/Token/INativeMinter.md)
 
 ### Create Bridge Contracts
 
@@ -163,225 +124,13 @@ Create a `Bridge` folder inside `contracts` folder
 
 Create `AvaxBridge.sol` file inside `Bridge` folder
 
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
-
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-contract AvaxBridge {
-    address public admin;
-    /* Gets incremented with each `lock()`, indicates the transferCount
-    and prevents double processing the event */
-    uint public nonce;
-
-    /* Represents the ERC20 token */
-    IERC20 public avaxToken;
-
-    /* Mapping to hold whether nonce is processed or not */
-    mapping(uint => bool) public processedNonces;
-
-    /* Allows us to indicate whether it is a `release()` or `lock()` when emitting an event */
-    enum Type {
-        Release,
-        Lock
-    }
-
-    /*
-        Event that is emitted with both `release()` and `lock()`
-        Relayer listens to events emitted by `lock()`
-        Potential frontend application may want to listen to events emitted by `release()`
-    */
-    event Transfer(
-        address from,
-        address to,
-        uint amount,
-        uint time,
-        uint nonce,
-        Type indexed transferType
-    );
-
-    /* Modifier to allow some functions to be only called by admin */
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "only admin");
-        _;
-    }
-
-    /* Constructor that sets admin as the sender and initializes the ERC20 token inside contract */
-    constructor(address _token) {
-        admin = msg.sender;
-        avaxToken = IERC20(_token);
-    }
-
-    /* Function to allow setting a new admin */
-    function setAdmin(address newAdmin) external onlyAdmin {
-        admin = newAdmin;
-    }
-
-    /* Function that is called by the relayer to release some tokens after it is burned on the subnet */
-    function release(
-        address to,
-        uint amount,
-        uint subnetNonce
-    ) external onlyAdmin {
-        require(
-            processedNonces[subnetNonce] == false,
-            "nonce already processed"
-        );
-        processedNonces[subnetNonce] = true;
-
-        /* Bridge sends locked tokens to the `to` address therefore, releases the tokens */
-        avaxToken.transfer(to, amount);
-
-        emit Transfer(
-            msg.sender,
-            to,
-            amount,
-            block.timestamp,
-            subnetNonce,
-            Type.Release
-        );
-    }
-
-    /*
-        Function that is called by the user to lock their tokens.
-        Relayer listens to the event emitted by this function and if the nonce is not processed,
-        it will call `mint()` of the SubnetBridge
-    */
-    function lock(address to, uint amount) external {
-        /* Send ERC20 tokens from msg.send (user) to bridge to lock the tokens */
-        /* Do not forget: sender should approve bridge address to do this */
-        avaxToken.transferFrom(msg.sender, address(this), amount);
-
-        /* Event that is emitted for relayer to process */
-        emit Transfer(
-            msg.sender,
-            to,
-            amount,
-            block.timestamp,
-            nonce,
-            Type.Lock
-        );
-        /* Increment the nonce to prevent double counting */
-        nonce++;
-    }
-}
-
-```
+[AvaxBridge.sol](./codeSnippets/contracts/Bridge/AvaxBridge.md)
 
 #### Subnet Bridge
 
 Create `SubnetBridge.sol` file inside `Bridge` folder
 
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
-
-import "../Token/INativeMinter.sol";
-
-contract SubnetBridge {
-    address public admin;
-    /* Address to send tokens to burn them */
-    address public burnAddress = address(0x0);
-    /* Gets incremented with each `burn()`, indicates the transferCount
-    and prevents double processing the event */
-    uint public nonce;
-
-    /* Represents NativeMinterInterface */
-    NativeMinterInterface public nativeMinter =
-        NativeMinterInterface(
-            /*
-                Native Minter contract is always at this address
-                as explained at https://docs.avax.network/subnets/customize-a-subnet#minting-native-coins
-             */
-            address(0x0200000000000000000000000000000000000001)
-        );
-
-    /* Mapping to hold whether nonce is processed or not */
-    mapping(uint => bool) public processedNonces;
-
-    /* Allows us to indicate whether it is a `mint()` or `burn()` when emitting an event */
-    enum Type {
-        Mint,
-        Burn
-    }
-
-    /*
-        Event that is emitted with both `mint()` and `burn()`
-        Relayer listens to events emitted by `burn()`
-        Potential frontend application may want to listen to events emitted by `mint()`
-    */
-    event Transfer(
-        address from,
-        address to,
-        uint amount,
-        uint time,
-        uint nonce,
-        Type indexed transferType
-    );
-
-    /* Modifier to allow some functions to be only called by admin */
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "only admin");
-        _;
-    }
-
-    /* Constructor that sets admin as the sender */
-    constructor() {
-        admin = msg.sender;
-    }
-
-    /* Function to allow setting new admin */
-    function setAdmin(address newAdmin) external onlyAdmin {
-        admin = newAdmin;
-    }
-
-    /* Function that is called by the relayer to mint some tokens after it is locked on the avax */
-    function mint(
-        address to,
-        uint amount,
-        uint avaxNonce
-    ) external onlyAdmin {
-        require(processedNonces[avaxNonce] == false, "nonce already processed");
-        processedNonces[avaxNonce] = true;
-
-        nativeMinter.mintNativeCoin(to, amount);
-        emit Transfer(
-            msg.sender,
-            to,
-            amount,
-            block.timestamp,
-            avaxNonce,
-            Type.Mint
-        );
-    }
-
-    /*
-        Function that is called by the user to burn their tokens.
-        Relayer listens to this event and if the nonce is not processed,
-        it will call `release()` of the AvaxBridge
-    */
-    function burn(address to) external payable {
-        require(msg.value > 0, "You have to burn more than 0 tokens");
-        /* Send native token to 0x0 address, effectively burning native token */
-        (bool sent, ) = payable(burnAddress).call{value: msg.value}("");
-        require(sent, "Failed to send native token");
-
-        /* Event that is emitted for relayer to process */
-        emit Transfer(
-            msg.sender,
-            to,
-            msg.value,
-            block.timestamp,
-            nonce,
-            Type.Burn
-        );
-
-        /* Increment the nonce to prevent double counting */
-        nonce++;
-    }
-}
-```
+[SubnetBridge.sol](./codeSnippets/contracts/Bridge/SubnetBridge.md)
 
 ### Compile Contracts
 
@@ -399,29 +148,9 @@ First we will create a `constants` folder at the root of the project to store so
 
 Inside `constants` folder create; `chains.js` and `nativeMinterAddress.js`.
 
-chains.js
+[chains.js](./codeSnippets/constants/chains.md)
 
-```js
-module.exports = {
-   avax: {
-       chainId: 43113,
-       rpcUrl: "https://api.avax-test.network/ext/bc/C/rpc",
-   },
-   subnet: {
-       chainId: <your-subnet-chain-id>,
-       rpcUrl:
-           "<your-subnet-rpc-url>",
-   },
-};
-```
-
-nativeMinterAddress.js
-
-```js
-module.exports = {
-	SUBNET_NATIVE_MINTER_ADDRESS: "0x0200000000000000000000000000000000000001",
-};
-```
+[nativeMinterAddress.js](./codeSnippets/constants/nativeMinterAddress.md)
 
 ### Variables
 
@@ -435,58 +164,9 @@ Then we will create a `utils` folder at the root of the project to define some g
 
 Inside `utils` folder create; `initProviders.js`, `initSigners.js` and `initContracts.js`
 
-initProviders.js
+[initProviders.js](./codeSnippets/utils/initProviders.md)
 
-```js
-const { ethers } = require("ethers");
-const chains = require("../constants/chains");
-
-module.exports = () => {
-	/* Create providers for both chains */
-	const avaxProvider = new ethers.providers.JsonRpcProvider(chains.avax.rpcUrl);
-	const subnetProvider = new ethers.providers.JsonRpcProvider(
-		chains.subnet.rpcUrl
-	);
-	return { avax: avaxProvider, subnet: subnetProvider };
-};
-```
-
-initSigners.js
-
-```js
-const { ethers } = require("ethers");
-const dotenv = require("dotenv");
-dotenv.config();
-
-module.exports = (providers) => {
-	/* 
-		Since we will have a bridge admin account to deploy and interact with bridges
-   		and a user account that is using the bridge.
-   		We have 2 different accounts to interact with bridges on 2 different chains
-   		Therefore, we have to create 4 wallets
-	 */
-	const avaxBridgeAdmin = new ethers.Wallet(
-		process.env.BRIDGE_ADMIN_PRIVATE_KEY,
-		providers.avax
-	);
-	const avaxBridgeUser = new ethers.Wallet(
-		process.env.BRIDGE_USER_PRIVATE_KEY,
-		providers.avax
-	);
-	const subnetBridgeAdmin = new ethers.Wallet(
-		process.env.BRIDGE_ADMIN_PRIVATE_KEY,
-		providers.subnet
-	);
-	const subnetBridgeUser = new ethers.Wallet(
-		process.env.BRIDGE_USER_PRIVATE_KEY,
-		providers.subnet
-	);
-	return {
-		avax: { admin: avaxBridgeAdmin, user: avaxBridgeUser },
-		subnet: { admin: subnetBridgeAdmin, user: subnetBridgeUser },
-	};
-};
-```
+[initSigners.js](./codeSnippets/utils/initSigners.md)
 
 **ALERT**
 
@@ -502,53 +182,7 @@ BRIDGE_USER_PRIVATE_KEY=<private-key-for-user>
 
 **ALERT**
 
-initContracts.js
-
-```js
-const { ethers } = require("ethers");
-/* Get ABIs of the contracts directly from the artifact folder created by hardhat after each compilation */
-const SUBNET_BRIDGE_ABI =
-	require("../artifacts/contracts/Bridge/SubnetBridge.sol/SubnetBridge").abi;
-const AVAX_BRIDGE_ABI =
-	require("../artifacts/contracts/Bridge/AvaxBridge.sol/AvaxBridge").abi;
-/* Currently we did not deploy our contracts but when we deploy them we will store them in the following file */
-const {
-	AVAX_BRIDGE_ADDRESS,
-	SUBNET_BRIDGE_ADDRESS,
-} = require("../variables/contractAddresses");
-
-module.exports = (signers) => {
-	/* AvaxBridge contract with signer access of bridgeAdmin */
-	const avaxBridgeAdmin = new ethers.Contract(
-		AVAX_BRIDGE_ADDRESS,
-		AVAX_BRIDGE_ABI,
-		signers.avax.admin
-	);
-	/* SubnetBridge contract with signer access of bridgeAdmin */
-	const subnetBridgeUser = new ethers.Contract(
-		SUBNET_BRIDGE_ADDRESS,
-		SUBNET_BRIDGE_ABI,
-		signers.subnet.user
-	);
-	/* SubnetBridge contract with signer access of user */
-	const subnetBridgeAdmin = new ethers.Contract(
-		SUBNET_BRIDGE_ADDRESS,
-		SUBNET_BRIDGE_ABI,
-		signers.subnet.admin
-	);
-	/* AvaxBridge contract with signer access of user */
-	const avaxBridgeUser = new ethers.Contract(
-		AVAX_BRIDGE_ADDRESS,
-		AVAX_BRIDGE_ABI,
-		signers.avax.user
-	);
-
-	return {
-		avax: { admin: avaxBridgeAdmin, user: avaxBridgeUser },
-		subnet: { admin: subnetBridgeAdmin, user: subnetBridgeUser },
-	};
-};
-```
+[initContracts.js](./codeSnippets/utils/initContracts.md)
 
 ### Scripts
 
@@ -562,7 +196,7 @@ We are using [Hardhat Tasks](https://hardhat.org/guides/create-task) to run our 
 
 Create `deploy.js` file inside `scripts` folder
 
-deploy.js
+[deploy.js](./codeSnippets/scripts/deploy.md)
 
 ::: warning
 
@@ -570,114 +204,11 @@ Make sure that BRIDGE_ADMIN has an admin role for NativeMinter. So that it can a
 
 :::
 
-```js
-const { ethers } = require("ethers");
-const dotenv = require("dotenv");
-
-const chains = require("../constants/chains");
-/* Get contract addresses from the file we generated by running the deploy script */
-const {
-	AVAX_BRIDGE_ADDRESS,
-	AVAX_TOKEN_ADDRESS,
-	SUBNET_BRIDGE_ADDRESS,
-} = require("../variables/contractAddresses");
-/* Get ABIs of the contracts directly from the artifact folder created by hardhat after each compilation */
-const SUBNET_BRIDGE_ABI =
-	require("../artifacts/contracts/Bridge/SubnetBridge.sol/SubnetBridge").abi;
-const AVAX_BRIDGE_ABI =
-	require("../artifacts/contracts/Bridge/AvaxBridge.sol/AvaxBridge").abi;
-const AVAX_TOKEN_ABI =
-	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").abi;
-dotenv.config();
-
-/* 
-  BurnOrLock script that allows us to both burn and lock tokens
-  On Avax it allows us to lock ERC20 tokens
-  On Subnet it allows us to burn native tokens
-*/
-module.exports = burnOrLock = async (from, amount) => {
-	let provider;
-	let signer;
-	let bridgeContract;
-	/* This script takes command line argument to indicate which chain we are using */
-	if (from === "avax") {
-		/* Initialize; provider, signer and tokenContract */
-		provider = new ethers.providers.JsonRpcProvider(chains.avax.rpcUrl);
-		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
-		const tokenContract = new ethers.Contract(
-			AVAX_TOKEN_ADDRESS,
-			AVAX_TOKEN_ABI,
-			signer
-		);
-
-		/* Approve bridge to use the token of the sender before trying to lock tokens */
-		const approveTx = await tokenContract.approve(
-			AVAX_BRIDGE_ADDRESS,
-			ethers.utils.parseEther(amount)
-		);
-		await approveTx.wait();
-
-		/* Initialize bridgeContract  */
-		bridgeContract = new ethers.Contract(
-			AVAX_BRIDGE_ADDRESS,
-			AVAX_BRIDGE_ABI,
-			signer
-		);
-
-		/* User locks ERC20 tokens to the bridge */
-		const lockTx = await bridgeContract.lock(
-			signer.address,
-			ethers.utils.parseEther(amount)
-		);
-		const minedTx = await lockTx.wait();
-
-		console.log("Successfully locked amount on avax: ", amount);
-		console.log("At block: ", minedTx.blockNumber);
-		/* Get user's ERC20 balance after lock */
-		const newUserBalance = await tokenContract.balanceOf(signer.address);
-		/* Get bridge's ERC20 balance after lock */
-		const newBridgeBalance = await tokenContract.balanceOf(AVAX_BRIDGE_ADDRESS);
-		console.log(
-			"Updated balance of user after burn: ",
-			ethers.utils.formatEther(newUserBalance)
-		);
-		console.log(
-			"Updated balance of bridge after burn: ",
-			ethers.utils.formatEther(newBridgeBalance)
-		);
-	} else if (from === "subnet") {
-		/* Initialize; provider, signer and tokenContract */
-		provider = new ethers.providers.JsonRpcProvider(chains.subnet.rpcUrl);
-		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
-		bridgeContract = new ethers.Contract(
-			SUBNET_BRIDGE_ADDRESS,
-			SUBNET_BRIDGE_ABI,
-			signer
-		);
-		/* User burns native tokens */
-		const burnTx = await bridgeContract.burn(signer.address, {
-			value: ethers.utils.parseEther(amount),
-		});
-		await burnTx.wait();
-		console.log("Successfully burned amount on subnet: ", amount);
-
-		/* Get user's native token balance after burn */
-		const newUserBalance = await signer.getBalance();
-		console.log(
-			"Updated balance of user after burn: ",
-			ethers.utils.formatEther(newUserBalance)
-		);
-	} else {
-		return;
-	}
-};
-```
-
 ##### Update hardhat.config.js file
 
 To add `deploy` script as a hardhat task add following code inside `hardhat.config.js`
 
-```js
+```javascript
 /* Import task from hardhat config */
 const { task } = require("hardhat/config");
 /* Import deploy function */
@@ -736,72 +267,13 @@ After running the script you should see deployed contract addresses on the comma
 
 Create `balance.js` file inside `scripts` folder
 
-balance.js
-
-```js
-const { ethers } = require("ethers");
-const dotenv = require("dotenv");
-
-const chains = require("../constants/chains");
-/* Get contract addresses from the file we generated by running the deploy script */
-const {
-	AVAX_TOKEN_ADDRESS,
-	AVAX_BRIDGE_ADDRESS,
-} = require("../variables/contractAddresses");
-/* Get ABIs of the contracts directly from the artifact folder created by hardhat after each compilation */
-const AVAX_TOKEN_ABI =
-	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").abi;
-dotenv.config();
-
-/* 
-  Balance script that allows us to check balances on both chains
-  On Avax it prints out the ERC20 balance of the user and the bridge.
-    (We are printing out the balance of the bridge because as users lock tokens bridge's balance of the ERC20 will increase)
-  On Subnet it prints out the native token balance of the user
-*/
-module.exports = balance = async (from) => {
-	let provider;
-	let signer;
-	let contract;
-	/* This script takes command line argument to indicate which chain we are using */
-	if (from === "avax") {
-		/* Initialize; provider, signer and contract */
-		provider = new ethers.providers.JsonRpcProvider(chains.avax.rpcUrl);
-		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
-		contract = new ethers.Contract(AVAX_TOKEN_ADDRESS, AVAX_TOKEN_ABI, signer);
-		/* Get ERC20 balance of the user */
-		const newUserBalance = await contract.balanceOf(signer.address);
-		/* Get ERC20 balance of the bridge */
-		const newBridgeBalance = await contract.balanceOf(AVAX_BRIDGE_ADDRESS);
-		console.log(
-			"MERC20 balance of the user: ",
-			ethers.utils.formatEther(newUserBalance)
-		);
-		console.log(
-			"MERC20 balance of the bridge: ",
-			ethers.utils.formatEther(newBridgeBalance)
-		);
-	} else if (from === "subnet") {
-		/* Initialize; provider, signer */
-		provider = new ethers.providers.JsonRpcProvider(chains.subnet.rpcUrl);
-		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
-		/* Get native token balance of the user */
-		const balance = await signer.getBalance();
-		console.log(
-			"Native token balance on Subnet: ",
-			ethers.utils.formatEther(balance)
-		);
-	} else {
-		return;
-	}
-};
-```
+[balance.js](./codeSnippets/scripts/balance.md)
 
 ##### Update hardhat.config.js file
 
 To add `balance` script as a hardhat task add the following code inside `hardhat.config.js`
 
-```js
+```javascript
 /* Import task from hardhat config */
 const { task } = require("hardhat/config");
 ...
@@ -850,116 +322,13 @@ MERC20 balance of the bridge:  0.0
 
 Create `burnOrLock.js` file inside `scripts` folder
 
-burnOrLock.js
-
-```js
-const { ethers } = require("ethers");
-const dotenv = require("dotenv");
-
-const chains = require("../constants/chains");
-/* Get contract addresses from the file we generated by running the deploy script */
-const {
-	AVAX_BRIDGE_ADDRESS,
-	AVAX_TOKEN_ADDRESS,
-	SUBNET_BRIDGE_ADDRESS,
-} = require("../variables/contractAddresses");
-/* Get ABIs of the contracts directly from the artifact folder created by hardhat after each compilation */
-const SUBNET_BRIDGE_ABI =
-	require("../artifacts/contracts/Bridge/SubnetBridge.sol/SubnetBridge").abi;
-const AVAX_BRIDGE_ABI =
-	require("../artifacts/contracts/Bridge/AvaxBridge.sol/AvaxBridge").abi;
-const AVAX_TOKEN_ABI =
-	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").abi;
-dotenv.config();
-
-/* 
-  BurnOrLock script that allows us to both burn and lock tokens
-  On Avax it allows us to lock ERC20 tokens
-  On Subnet it allows us to burn native tokens
-*/
-module.exports = burnOrLock = async (from, amount) => {
-	let provider;
-	let signer;
-	let bridgeContract;
-	/* This script takes command line argument to indicate which chain we are using */
-	if (from === "avax") {
-		/* Initialize; provider, signer and tokenContract */
-		provider = new ethers.providers.JsonRpcProvider(chains.avax.rpcUrl);
-		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
-		const tokenContract = new ethers.Contract(
-			AVAX_TOKEN_ADDRESS,
-			AVAX_TOKEN_ABI,
-			signer
-		);
-
-		/* Approve bridge to use the token of the sender before trying to lock tokens */
-		const approveTx = await tokenContract.approve(
-			AVAX_BRIDGE_ADDRESS,
-			ethers.utils.parseEther(amount)
-		);
-		await approveTx.wait();
-
-		/* Initialize bridgeContract  */
-		bridgeContract = new ethers.Contract(
-			AVAX_BRIDGE_ADDRESS,
-			AVAX_BRIDGE_ABI,
-			signer
-		);
-
-		/* User locks ERC20 tokens to the bridge */
-		const lockTx = await bridgeContract.lock(
-			signer.address,
-			ethers.utils.parseEther(amount)
-		);
-		const minedTx = await lockTx.wait();
-
-		console.log("Successfully locked amount on avax: ", amount);
-		console.log("At block: ", minedTx.blockNumber);
-		/* Get user's ERC20 balance after lock */
-		const newUserBalance = await tokenContract.balanceOf(signer.address);
-		/* Get bridge's ERC20 balance after lock */
-		const newBridgeBalance = await tokenContract.balanceOf(AVAX_BRIDGE_ADDRESS);
-		console.log(
-			"Updated balance of user after burn: ",
-			ethers.utils.formatEther(newUserBalance)
-		);
-		console.log(
-			"Updated balance of bridge after burn: ",
-			ethers.utils.formatEther(newBridgeBalance)
-		);
-	} else if (from === "subnet") {
-		/* Initialize; provider, signer and tokenContract */
-		provider = new ethers.providers.JsonRpcProvider(chains.subnet.rpcUrl);
-		signer = new ethers.Wallet(process.env.BRIDGE_USER_PRIVATE_KEY, provider);
-		bridgeContract = new ethers.Contract(
-			SUBNET_BRIDGE_ADDRESS,
-			SUBNET_BRIDGE_ABI,
-			signer
-		);
-		/* User burns native tokens */
-		const burnTx = await bridgeContract.burn(signer.address, {
-			value: ethers.utils.parseEther(amount),
-		});
-		await burnTx.wait();
-		console.log("Successfully burned amount on subnet: ", amount);
-
-		/* Get user's native token balance after burn */
-		const newUserBalance = await signer.getBalance();
-		console.log(
-			"Updated balance of user after burn: ",
-			ethers.utils.formatEther(newUserBalance)
-		);
-	} else {
-		return;
-	}
-};
-```
+[burnOrLock.js](./codeSnippets/scripts/burnOrLock.md)
 
 ##### Update hardhat.config.js file
 
 To add `burnOrLock` script as a hardhat task add the following code inside `hardhat.config.js`
 
-```js
+```javascript
 /* Import task from hardhat config */
 const { task } = require("hardhat/config");
 ...
@@ -1005,308 +374,7 @@ npx hardhat burnOrLock --from subnet --amount <Example value: 4>
 
 Create a `relayer.js` file at root folder of the project.
 
-relayer.js
-
-```js
-const { ethers } = require("ethers");
-const dotenv = require("dotenv");
-
-/* Get needed util functions */
-const initProviders = require("./utils/initProviders");
-const initSigners = require("./utils/initSigners");
-const initContracts = require("./utils/initContracts");
-
-dotenv.config();
-
-/* Relayer application
- 
-Could be run by
-  	`node ./relayer.js`,
-  	`node ./relayer.js <avaxBlockNumber>`,
-  	`node ./relayer.js <avaxBlockNumber> <subnetBlockNumber>`,
-  	`node ./relayer.js -1 <subnetBlockNumber>`
- 
-When run with `node ./relayer.js`:
-  	Relayer will subscribe to events from recent blocks on Avax and Subnet
-  	Therefore, it might not processes an event that is emitted 1000 blocks ago
-  	If you want to start the relayer and make a transaction, current way of running is what you are looking for
- 
-When run with `node ./relayer.js <avaxBlockNumber> <subnetBlockNumber>`
-  	Relayer will look for events on Avax and Subnet from the block number you provided
-  	and will iterate through the next 10 blocks for the event. Will processes observed event
-  	Therefore, if you have a burn or lock event emitted 1000 blocks ago, you can process it by giving the right blockNumber
-  	If you want to start the relayer to processes an old burn or lock event, current way of running is what you are looking for
-  
-When run with `node ./relayer.js -1 <subnetBlockNumber>` or `node ./relayer.js <avaxBlockNumber>`
-  	Relayer will look for events on either Avax or Subnet from the block number you provided
-  	and will iterate through the next 10 blocks for the event. Will processes observed event
-  	"-1" as block number means do not process any old blocks for that chain.
-  	Therefore, `node ./relayer.js -1 <subnetBlockNumber>` will only process events for the subnet.
-  	If you want to start the relayer to process an old burn or lock event just on one chain, current way of running is what you are looking for
-*/
-const main = async () => {
-	/* 
-    	If there is a need for sending transactions
-      	Add it to the txs array.
-      	Because of the `setInterval()` relayer will send transactions every 5 seconds if at least 1 transaction exists
-      	We wait 5 seconds in between transactions to make sure we do not replace our own transactions before they are added to a block.
-   	 */
-	let txs = [];
-
-	/* Init providers, signer and bridgeContract */
-	const providers = initProviders();
-	const signers = initSigners(providers);
-	const bridgeContracts = initContracts(signers);
-
-	/* 
-		For Avax
-			Relayer gets command line arguments
-			If command line argument exists and it is not -1
-			Then process next 10 blocks and process events from these block number
-	 */
-	if (process.argv[2] && parseInt(process.argv[2]) !== -1) {
-		const startBlock = parseInt(process.argv[2]);
-		const recentBlock = await providers.avax.getBlockNumber();
-		/*
-			If startBlock + 10 exceeds the recent block it would throw an error.
-			Since we would be trying to process blocks that are not there.
-			Therefore, we set endBlock to the smaller one of two
-     	 */
-		const endBlock =
-			startBlock + 10 >= recentBlock ? recentBlock : startBlock + 10;
-		/* Reset blockNumber of the provider to process those blocks */
-		providers.avax.resetEventsBlock(startBlock);
-		/* Create new bridge contract instance because provider is changed */
-		const localBridgeContracts = initContracts(signers);
-		/* Filter events for "Transfer" event */
-		const filter = localBridgeContracts.avax.admin.filters.Transfer();
-		/* Query contract for old events in between startBlock and endBlock with given filter */
-		let oldAvaxEvents = await localBridgeContracts.avax.admin.queryFilter(
-			filter,
-			startBlock,
-			endBlock
-		);
-		/* Format oldEvents as if they are transactions */
-		oldAvaxEvents = oldAvaxEvents.map((event) => ({
-			chain: "subnet",
-			to: event.args.to,
-			amount: event.args.amount,
-			nonce: event.args.nonce,
-		}));
-
-		/*
-			Since we are looking for old events
-			They might have been already processed
-			Therefore, check if corresponding nonce is already processed or not
-			If not, add it to the txs array
-		 */
-		await Promise.all(
-			oldAvaxEvents.map(async (event) => {
-				const { to, amount, nonce } = event;
-				console.log("OLD: Lock happened on avax");
-				console.log(
-					`OLD: Transfer: to: ${to},  amount: ${ethers.utils.formatEther(
-						amount
-					)}, nonce: ${nonce}`
-				);
-				/* Check if nonce is processed or not */
-				const isProcessed =
-					await localBridgeContracts.subnet.admin.processedNonces(nonce);
-				if (!isProcessed) {
-					/* If not processed add tx to txs array */
-					console.log("OLD: is not processed, will mint on subnet\n");
-					txs.push(event);
-				} else {
-					console.log("OLD: is already processed\n");
-				}
-			})
-		);
-	}
-
-	// Pretty familiar as above, provider is changed
-	/* 
-		For Subnet
-      		Relayer gets command line arguments
-      		If command line argument exists and it is not -1
-     		Then process next 10 blocks and process events from these block number
-  	 */
-	if (process.argv[3] && parseInt(process.argv[3]) !== -1) {
-		const startBlock = parseInt(process.argv[3]);
-		const recentBlock = await providers.subnet.getBlockNumber();
-		/* 
-      		If startBlock + 10 exceeds the recent block it would throw an error.
-      		Since we would be trying to process blocks that are not there.
-      		Therefore, we set endBlock to the smaller one of two   
-		 */
-		const endBlock =
-			startBlock + 10 >= recentBlock ? recentBlock : startBlock + 10;
-		/* Reset blockNumber of the provider to process those blocks */
-		providers.subnet.resetEventsBlock(startBlock);
-		/* Create new bridge contract instance because provider is changed */
-		const localBridgeContracts = initContracts(signers);
-		/* Filter events for "Transfer" event */
-		const filter = localBridgeContracts.subnet.admin.filters.Transfer();
-		/* Query contract for old events in between startBlock and endBlock with given filter */
-		let oldSubnetEvents = await localBridgeContracts.subnet.admin.queryFilter(
-			filter,
-			startBlock,
-			endBlock
-		);
-		/* Format oldEvents as if they are transactions */
-		oldSubnetEvents = oldSubnetEvents.map((event) => ({
-			chain: "avax",
-			to: event.args.to,
-			amount: event.args.amount,
-			nonce: event.args.nonce,
-		}));
-
-		/* 
-      		Since we are looking for old events
-     		They might have been already processed
-     		Therefore, check if corresponding nonce is already processed or not
-      		If not, add it to the txs array
-		 */
-		await Promise.all(
-			oldSubnetEvents.map(async (event) => {
-				const { to, amount, nonce } = event;
-				console.log("OLD: Burned happened on subnet");
-				console.log(
-					`OLD: Transfer: to: ${to},  amount: ${ethers.utils.formatEther(
-						amount
-					)}, nonce: ${nonce}`
-				);
-				/* Check if nonce is processed or not */
-				const isProcessed =
-					await localBridgeContracts.subnet.admin.processedNonces(nonce);
-				if (!isProcessed) {
-					/* If not processed add tx to txs array */
-					console.log("OLD: is not processed, will release on subnet\n");
-					txs.push(event);
-				} else {
-					console.log("OLD: is already processed\n");
-				}
-			})
-		);
-	}
-
-	/* With above 2 functions we have processed old blocks */
-	console.log("\n\nOld events processed");
-
-	/* 
-		Now we subscribe to bridgeContract events on both chains
-		Which allows us to run a function whenever a new event is observed
-  	 */
-
-	/* Subscribe to bridge events on avax */
-	bridgeContracts.avax.admin.on(
-		/* Subscribe to "Transfer" event */
-		"Transfer",
-		async (from, to, amount, date, nonce, type) => {
-			/*
-        		type 0 means it is a release event
-        		type 1 means it is a lock event
- 
-        		We only care for lock events as relayer. On lock events we will mint on subnet
-       			We have added the release event for frontend applications.
-			 */
-			if (type === 1) {
-				console.log("Lock happened on avax");
-				console.log(
-					`Transfer: from: ${from}, to: ${to}, amount: ${ethers.utils.formatEther(
-						amount
-					)}, date: ${date}, nonce: ${nonce}, type: ${type}`
-				);
-				/* Check if nonce is processed or not */
-				const isProcessed = await bridgeContracts.subnet.admin.processedNonces(
-					nonce
-				);
-				if (!isProcessed) {
-					/* If not processed add tx to txs array */
-					console.log("is not processed, will mint on subnet\n");
-					txs.push({ chain: "subnet", to, amount, nonce });
-				} else {
-					console.log("is already processed\n");
-				}
-			}
-		}
-	);
-
-	/* Subscribe to bridge events on subnet */
-	bridgeContracts.subnet.admin.on(
-		/* Subscribe to "Transfer" event */
-		"Transfer",
-		async (from, to, amount, date, nonce, type) => {
-			/*
-        		type 0 means it is a mint event
-        		type 1 means it is a burn event
- 
-        		We only care for burn events as relayer. On burn events we will release on subnet
-        		We have added the mint event for frontend applications.
-			 */
-			if (type === 1) {
-				console.log("Burn happened on subnet");
-				console.log(
-					`Transfer: from: ${from}, to: ${to}, amount: ${ethers.utils.formatEther(
-						amount
-					)}, date: ${date}, nonce: ${nonce}, type: ${type}`
-				);
-				/* Check if nonce is processed or not */
-				const isProcessed = await bridgeContracts.avax.admin.processedNonces(
-					nonce
-				);
-				if (!isProcessed) {
-					/* If not processed add tx to txs array */
-					console.log("is not processed, will release on avax\n");
-					txs.push({ chain: "avax", to, amount, nonce });
-				} else {
-					console.log("is already processed\n");
-				}
-			}
-		}
-	);
-	console.log("Started listening for new events\n\n");
-
-	/* 
-		This function gets to run each 5 seconds and it sends `mint` or `release` transactions to the bridge contract
-		We wait 5 seconds in between transactions to make sure we do not replace our own transactions before they are added to a block.
-	 */
-	setInterval(async () => {
-		/* If there is not transactions to send do nothing */
-		if (txs.length > 0) {
-			/* 
-        		If provided blockNumbers for avax or subnet are close to current blocks of the chains
-        		Then a transaction might get added to the txs array twice. Once processing old blocks (but pretty recent) and once subscribed to new events.
-			 */
-			txs = txs.filter(
-				(value, index, self) =>
-					index ===
-					self.findIndex(
-						(t) => t.place === value.place && t.name === value.name
-					)
-			);
-			console.log("txs: ", txs);
-			let tx;
-			/* Remove the first element from the array and destructure it */
-			const { chain, to, amount, nonce } = txs.shift();
-			/* Check which chain the transaction will be sent to  */
-			if (chain === "avax") {
-				/* Call `release()` on avax */
-				tx = await bridgeContracts[chain].admin.release(to, amount, nonce);
-			} else if (chain === "subnet") {
-				/* Call `mint()` on subnet */
-				tx = await bridgeContracts[chain].admin.mint(to, amount, nonce);
-			} else return;
-			await tx.wait();
-			console.log("transaction processed, token minted or released");
-		}
-	}, 5000);
-};
-
-main().catch((error) => {
-	console.error(error);
-	process.exitCode = 1;
-});
-```
+[relayer.js](./codeSnippets/relayer.md)
 
 ### Running the Relayer
 
