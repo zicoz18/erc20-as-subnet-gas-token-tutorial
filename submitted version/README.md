@@ -56,7 +56,7 @@ We are using the Burn-Release mechanism when we bridge our token from Subnet to 
 
 ::: warning
 
-If bridge contract does not have any token, it can not release them. Therefore, make sure that bridge has some tokens to release. This was not a concern for lock-mint mechanism because it could always mint.
+If bridge contract does not have enough tokens, it can not release them. Therefore, make sure that bridge is sufficiently funded to release intended amount. This was not a concern for lock-mint mechanism because it could always mint.
 
 :::
 
@@ -168,11 +168,11 @@ Inside `utils` folder create; `initProviders.js`, `initSigners.js` and `initCont
 
 [initSigners.js](./codeSnippets/utils/initSigners.md)
 
-**ALERT**
+::: info
 
-> As you see, we have used `process.env.<..._PRIVATE_KEY>`. Reason behind that is we do not want to expose our private keys inside our code. To use this, first you have to run `npm i dotenv` to install the related package. At the root of the project create a file named `.env`. Afterwards put in the private keys of your accounts as follows,
+As you see, we have used `process.env.<..._PRIVATE_KEY>`. Reason behind that is we do not want to expose our private keys inside our code. To use this, first you have to run `npm i dotenv` to install the related package. At the root of the project create a file named `.env`. Afterwards put in the private keys of your accounts as follows,
 
-```bash
+```text
 BRIDGE_ADMIN_PRIVATE_KEY=<private-key-for-admin>
 BRIDGE_USER_PRIVATE_KEY=<private-key-for-user>
 ```
@@ -180,7 +180,7 @@ BRIDGE_USER_PRIVATE_KEY=<private-key-for-user>
 - Make sure that both accounts are funded on both chains so that they can send transactions.
 - Make sure that `.env` file is included in your `.gitignore` file so that you do not upload this file to git.
 
-**ALERT**
+:::
 
 [initContracts.js](./codeSnippets/utils/initContracts.md)
 
@@ -211,30 +211,11 @@ To add `deploy` script as a hardhat task add following code inside `hardhat.conf
 ```javascript
 /* Import task from hardhat config */
 const { task } = require("hardhat/config");
+...
 /* Import deploy function */
 require("./scripts/deploy");
 ...
-/* Crete deploy task */
-task(
-   "deploy",
-   "Deploy bridges on both networks and deploy AvaxToken, also update the admins"
-).setAction(async (taskArgs, hre) => {
-   await deploy().catch((error) => {
-       console.error(error);
-       process.exitCode = 1;
-   });
-});
-...
-```
-
-After adding the task and removing unnecessary parts, your `hardhat.config.js` should look similar to following:
-
-```javascript
-require("@nomicfoundation/hardhat-toolbox");
-const { task } = require("hardhat/config");
-
-require("./scripts/deploy");
-
+/* Create deploy task */
 task(
 	"deploy",
 	"Deploy bridges on both networks and deploy AvaxToken, also update the admins"
@@ -244,12 +225,10 @@ task(
 		process.exitCode = 1;
 	});
 });
-
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
-	solidity: "0.8.9",
-};
+...
 ```
+
+Example [hardhat.config.js](./codeSnippets/hardhatConfig0.md) file after adding the deploy task.
 
 ##### Run deploy script
 
@@ -274,7 +253,7 @@ Create `balance.js` file inside `scripts` folder
 To add `balance` script as a hardhat task add the following code inside `hardhat.config.js`
 
 ```javascript
-/* Import task from hardhat config */
+/* Import task from hardhat config if you did not already */
 const { task } = require("hardhat/config");
 ...
 /* Import balance function */
@@ -282,16 +261,18 @@ require("./scripts/balance");
 ...
 /* Create balance task  */
 task("balance", "Get token balance from a network")
-   /* Add `from` parameter indication the used network which is either avax or subnet */
-   .addParam("from", "Network to get balance from")
-   .setAction(async (taskArgs, hre) => {
-       await balance(taskArgs.from).catch((error) => {
-           console.error(error);
-           process.exitCode = 1;
-       });
-   });
+	/* Add `from` parameter indication the used network which is either avax or subnet */
+	.addParam("from", "Network to get balance from")
+	.setAction(async (taskArgs, hre) => {
+		await balance(taskArgs.from).catch((error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+	});
 ...
 ```
+
+Example [hardhat.config.js](./codeSnippets/hardhatConfig1.md) file after adding the balance task.
 
 ##### Run balance script
 
@@ -311,7 +292,7 @@ After running the script you should see balances printed out in the comman line.
 
 Balance value seen on the subnet depends on how you have funded your address. But balance values on avax should look like the following:
 
-```
+```text
 MERC20 balance of the user:  1000000.0
 MERC20 balance of the bridge:  0.0
 ```
@@ -337,18 +318,20 @@ require("./scripts/burnOrLock");
 ...
 /* Create burnOrRelease task  */
 task("burnOrLock", "Burn or lock token from a network")
-   /* Add `from` parameter indication the used network which is either avax or subnet */
-   .addParam("from", "Network to burn or lock from")
-   /* Add `amount` parameter indication the amount to burn or lock */
-   .addParam("amount", "Amount to burn or lock in ethers")
-   .setAction(async (taskArgs, hre) => {
-       await burnOrLock(taskArgs.from, taskArgs.amount).catch((error) => {
-           console.error(error);
-           process.exitCode = 1;
-       });
-   });
+	/* Add `from` parameter indication the used network which is either avax or subnet */
+	.addParam("from", "Network to burn or lock from")
+	/* Add `amount` parameter indication the amount to burn or lock */
+	.addParam("amount", "Amount to burn or lock")
+	.setAction(async (taskArgs, hre) => {
+		await burnOrLock(taskArgs.from, taskArgs.amount).catch((error) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+	});
 ...
 ```
+
+Example [hardhat.config.js](./codeSnippets/hardhatConfig2.md) file after adding all tasks.
 
 ##### Run burnOrRelease script
 
@@ -364,11 +347,11 @@ or
 npx hardhat burnOrLock --from subnet --amount <Example value: 4>
 ```
 
-**ALERT**
+::: caution
 
-> When you try to run the first script `... --from avax --amount 10` if the user has 10 ERC20 tokens it will work fine and you will see the updated balances as expected on avax network. User’s decremented by 10, bridge’s incremented by 10. But you would not see that the user's native token balance on the subnet is increased. Although there are bridge contracts, there is no relayer application to establish the communication in between them. Therefore, the user locked its tokens but its balance on the subnet did not change. It is the same for the second script where the user burns tokens on subnet but does not get any new tokens on avax c-chain. Be aware, if the user account does not have native token balance on the subnet, the second script would throw an error.
+When you try to run the first script `... --from avax --amount 10` if the user has 10 ERC20 tokens it will work fine and you will see the updated balances as expected on avax network. User’s decremented by 10, bridge’s incremented by 10. But you would not see that the user's native token balance on the subnet is increased. Although there are bridge contracts, there is no relayer application to establish the communication in between them. Therefore, the user locked its tokens but its balance on the subnet did not change. It is the same for the second script where the user burns tokens on subnet but does not get any new tokens on avax c-chain. Be aware, if the user account does not have native token balance on the subnet, the second script would throw an error.
 
-**ALERT**
+::: caution
 
 ## Create the Relayer Application
 
@@ -379,8 +362,6 @@ Create a `relayer.js` file at root folder of the project.
 ### Running the Relayer
 
 As you can also see from the comments of the relayer file. There are different ways to start the relayer application
-
-- Different ways of running
 
 - ```bash
   node ./relayer.js
@@ -398,7 +379,7 @@ As you can also see from the comments of the relayer file. There are different w
   - When run with `node ./relayer.js <avaxBlockNumber> <subnetBlockNumber>`
     Relayer will look for events on Avax and Subnet from the block number you provided
     and will iterate through the next 10 blocks for the event. Will processes observed event
-    Therefore, if you have a burn or lock event emitted 1000 blocks ago, you can process it by giving the right blockNumber
+    Therefore, if you have a burn or lock event emitted 1000 blocks ago, you can process it by giving the right blockNumber.
     If you want to start the relayer to processes an old burn or lock event, current way of running is what you are looking for
 
 - ```bash
@@ -456,7 +437,6 @@ In this video on the left terminal I am using our custom scripts to interact wit
 Things to check out;
 
 - Error while compiling contracts
-  <!-- - You have updated the compiler version to 0.8.7 from harhat.config.js. -->
   - You have run `npm i @openzeppelin/contracts`.
 - Error while running scripts
   - Both accounts on both chains have some native token so that they can send transactions.
