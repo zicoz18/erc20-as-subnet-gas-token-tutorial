@@ -9,7 +9,7 @@ contract AvaxBridge {
     and prevents double processing the event */
     uint public nonce;
 
-    /* Represents the ERC20 token  */
+    /* Represents the ERC20 token */
     IERC20 public avaxToken;
 
     /* Mapping to hold whether nonce is processed or not */

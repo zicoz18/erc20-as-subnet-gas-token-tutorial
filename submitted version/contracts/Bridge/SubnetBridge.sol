@@ -17,7 +17,7 @@ contract SubnetBridge {
             /* 
                 Native Minter contract is always at this address
                 as explained at https://docs.avax.network/subnets/customize-a-subnet#minting-native-coins
-           */
+             */
             address(0x0200000000000000000000000000000000000001)
         );
 
