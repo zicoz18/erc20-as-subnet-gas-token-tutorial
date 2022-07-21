@@ -2,22 +2,22 @@
 
 ## Introduction
 
-Purpose of this tutorial is to use a ERC-20 C-chain token as the gas fee token on a subnet by deploying a bridge. We will not be using any bridge provider, instead we will be implementing our own bridge, to truly understand how bridges work and how to modify them to our needs. Bridge we will be implementing is a [trusted](#trusted-and-trustless-bridges) bridge and it uses [lock-mint](#lock-mint-and-burn-release-mechanisms) mechanism to transfer assets from C-chain to subnet and [burn-release](#lock-mint-and-burn-release-mechanisms) mechanism from subnet to C-chain.
+Purpose of this tutorial is to use a ERC-20 C-chain token as the gas fee token on a subnet by deploying a bridge. We will not be using a bridge provider, instead we will be implementing our own bridge to truly understand how bridges work and how to modify them to our needs. Bridge we will be implementing is a [trusted](#trusted-and-trustless-bridges) bridge and it uses [lock-mint](#lock-mint-and-burn-release-mechanisms) mechanism to transfer assets from C-chain to subnet and [burn-release](#lock-mint-and-burn-release-mechanisms) mechanism from subnet to C-chain.
 
 DISCLAIMER: The bridge implementation in this tutorial is a proof of concept and is not production ready.
 
 ## Prerequisites
 
 - Basic knowledge of [Precompiles](https://docs.avax.network/subnets/customize-a-subnet#precompiles).
-- We will be using [NativeMinter](https://docs.avax.network/subnets/customize-a-subnet#minting-native-coins) precompile on our subnet. Familiarity with precompiles and knowledge of NativeMinter precompile will be assumed.
+  - We will be using [NativeMinter](https://docs.avax.network/subnets/customize-a-subnet#minting-native-coins) precompile on our subnet. Familiarity with precompiles and knowledge of NativeMinter precompile will be assumed.
 - Having an up and running subnet which uses NativeMinter precompile.
-- In this tutorial we will be using a local subnet. Refer to [this](https://docs.avax.network/subnets/create-a-local-subnet), to deploy your local subnet.
+  - In this tutorial we will be using a local subnet. Refer to [this](https://docs.avax.network/subnets/create-a-local-subnet), to deploy your local subnet.
 - Basic knowledge of [Hardhat](https://hardhat.org/).
-- We will be writing our code in a Hardhat development environment. We will write custom scripts to automate our job and add those scripts as tasks to hardhat.
+  - We will be writing our code in a Hardhat development environment. We will write custom scripts to automate our job and add those scripts as tasks to hardhat.
 - General knowledge of [Ethers js](https://docs.ethers.io/v5/).
-- We will be interacting with both the Avalanche Fuji chain and our subnet using ethers js. We will be initializing providers, signers, contracts and interacting with contracts using ethers js.
-- Basic knowledge of [Solidity](https://docs.soliditylang.org/en/v0.8.7/).
-- We will be writing our own Bridge and Token contracts using Solidity.
+  - We will be interacting with both the Avalanche Fuji chain and our subnet using ethers js. We will be initializing providers, signers, contracts and interacting with contracts using ethers js.
+- General knowledge of [Solidity](https://docs.soliditylang.org/en/v0.8.7/).
+  - We will be writing our own Bridge and Token contracts using Solidity.
 
 ## General Concepts
 
@@ -32,7 +32,7 @@ Before writing any code, we should understand how bridges work and what type of 
 
 ### Trusted and Trustless Bridges
 
-In short, bridges allow cross-chain transfers and there are 2 main types of bridges; Trusted and Trustless. Trusted bridges depend on an entity and have trust assumptions. Trustless bridges do not require trust assumptions to external entities but only to blockchain itself. To get more detail refer to ethereum's official documentation about [bridges](https://ethereum.org/en/bridges/).
+In short, bridges allow cross-chain transfers and there are 2 main types of bridges; Trusted and Trustless. Trusted bridges depend on an entity and have trust assumptions. Trustless bridges do not require trust assumptions to external entities but only to blockchain itself. To get more details refer to ethereum's official documentation about [bridges](https://ethereum.org/en/bridges/).
 
 ### Lock-Mint and Burn-Release Mechanisms
 
@@ -53,6 +53,12 @@ We are using the Lock-Mint mechanism when we bridge our token from C-chain to Su
 - Bridge contract on the other chain sends the token to the given address, effectively releasing it.
 
 We are using the Burn-Release mechanism when we bridge our token from Subnet to C-chain.
+
+::: warning
+
+If bridge contract does not have any token, it can not release them. Therefore, make sure that bridge has some tokens to release. This was not a concern for lock-mint mechanism because it could always mint.
+
+:::
 
 ### Building Blocks of our Bridge
 
@@ -82,19 +88,17 @@ To initialize project, run:
 npx hardhat init
 ```
 
-Select `Create a basic sample project` and walk through creating the project.
+Select `Create a JavaScript project` and walk through creating the project.
 
 ## Create Contracts
 
-Delete `Greeter.sol` file
+Delete `Lock.sol` file
 
 To use openzeppelin contracts in our contracts, run:
 
 ```bash
 npm i @openzeppelin/contracts
 ```
-
-Make sure to update your solidity compiler version inside `hardhat.config.js` to 0.8.7. It is by default set to 0.8.4 and our contracts are written for 0.8.7 and above.
 
 ### Create Token Contracts
 
@@ -416,7 +420,7 @@ module.exports = {
 
 ### Variables
 
-Secondly we will create a `variables` folder at the root of the project to store some updated values such as contract address.
+Secondly we will create a `variables` folder at the root of the project to store some updated values such as contract addresses.
 
 Inside the `variables` folder create `contractAddresses.js` but do not put anything in it. This file will be auto generated whenever we deploy some contracts.
 
@@ -442,7 +446,7 @@ module.exports = () => {
 };
 ```
 
-initSigner.js
+initSigners.js
 
 ```js
 const { ethers } = require("ethers");
@@ -453,7 +457,7 @@ module.exports = (providers) => {
 	/* Since we will have a bridge admin account to deploy and interact with bridges
    and a user account that is using the bridge.
    We have 2 different accounts to interact with bridges on 2 different chains
-   Therefore, we have to create 4 wallet
+   Therefore, we have to create 4 wallets
    */
 	const avaxBridgeAdmin = new ethers.Wallet(
 		process.env.BRIDGE_ADMIN_PRIVATE_KEY,
@@ -472,8 +476,8 @@ module.exports = (providers) => {
 		providers.subnet
 	);
 	return {
-		avax: { bridgeAdmin: avaxBridgeAdmin, user: avaxBridgeUser },
-		subnet: { bridgeAdmin: subnetBridgeAdmin, user: subnetBridgeUser },
+		avax: { admin: avaxBridgeAdmin, user: avaxBridgeUser },
+		subnet: { admin: subnetBridgeAdmin, user: subnetBridgeUser },
 	};
 };
 ```
@@ -553,6 +557,12 @@ We are using [Hardhat Tasks](https://hardhat.org/guides/create-task) to run our 
 Create `deploy.js` file inside `scripts` folder
 
 deploy.js
+
+::: warning
+
+Make sure that BRIDGE_ADMIN has an admin role for NativeMinter. So that it can allow subnetBridge contract to mint native token
+
+:::
 
 ```js
 const fs = require("fs");
@@ -679,9 +689,10 @@ task(
 
 After adding the task and removing unnecessary parts, your `hardhat.config.js` should look similar to following:
 
-```js
+```javascript
+require("@nomicfoundation/hardhat-toolbox");
 const { task } = require("hardhat/config");
-require("@nomiclabs/hardhat-waffle");
+
 require("./scripts/deploy");
 
 task(
@@ -694,8 +705,9 @@ task(
 	});
 });
 
+/** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-	solidity: "0.8.7",
+	solidity: "0.8.9",
 };
 ```
 
@@ -707,7 +719,7 @@ To run our deploy script, run:
 npx hardhat deploy
 ```
 
-After running the script you should see deployed contract addresses on the command line and updated `variables/contractAddresses.js` file.
+After running the script you should see deployed contract addresses on the command line and see that `variables/contractAddresses.js` file is updated.
 
 #### Balance script
 
@@ -1317,11 +1329,13 @@ As you can also see from the comments of the relayer file. There are different w
 
 ### Testing the relayer
 
+<!-- TODO: Videoları sıfırdan tutorial'ı takip ettiğin durumdan başlat -->
+
 #### Test relayer
 
 In this video on the left terminal I am using our custom scripts to interact with chains and on the right terminal I am using our relay to create the cross chain communication.
 
-https://user-images.githubusercontent.com/65618011/177062973-b6561d79-79df-47af-ae3e-5368ab38e1c0.mov
+![Test relayer with scripts](./assets/2.gif)
 
 ##### What happens on the video?
 
@@ -1338,7 +1352,7 @@ https://user-images.githubusercontent.com/65618011/177062973-b6561d79-79df-47af-
 
 #### Test relayer for old events
 
-https://user-images.githubusercontent.com/65618011/177063396-d5f42da1-8224-42bd-bff7-0086e963fcb9.mov
+![Test relayer for old events](./assets/1.gif)
 
 ##### What happens on the video?
 
@@ -1353,7 +1367,7 @@ https://user-images.githubusercontent.com/65618011/177063396-d5f42da1-8224-42bd-
 Things to check out;
 
 - Error while compiling contracts
-  - You have updated the compiler version to 0.8.7 from harhat.config.js.
+  <!-- - You have updated the compiler version to 0.8.7 from harhat.config.js. -->
   - You have run `npm i @openzeppelin/contracts`.
 - Error while running scripts
   - Both accounts on both chains have some native token so that they can send transactions.

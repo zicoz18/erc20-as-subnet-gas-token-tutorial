@@ -17,10 +17,11 @@ const AVAX_TOKEN_ABI =
 	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").abi;
 dotenv.config();
 
-/* BurnOrLock script that allows us to both burn and lock tokens
-	On Avax it allows us to lock ERC20 tokens
-	On Subnet it allows us to burn native tokens 
- */
+/* 
+  BurnOrLock script that allows us to both burn and lock tokens
+  On Avax it allows us to lock ERC20 tokens
+  On Subnet it allows us to burn native tokens
+*/
 module.exports = burnOrLock = async (from, amount) => {
 	let provider;
 	let signer;
