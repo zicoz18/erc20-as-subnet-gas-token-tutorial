@@ -1,3 +1,4 @@
+```javascript
 const { ethers } = require("ethers");
 const dotenv = require("dotenv");
 
@@ -17,10 +18,11 @@ const AVAX_TOKEN_ABI =
 	require("../artifacts/contracts/Token/AvaxToken.sol/AvaxToken").abi;
 dotenv.config();
 
-/* BurnOrLock script that allows us to both burn and lock tokens
-	On Avax it allows us to lock ERC20 tokens
-	On Subnet it allows us to burn native tokens 
- */
+/* 
+  BurnOrLock script that allows us to both burn and lock tokens
+  On Avax it allows us to lock ERC20 tokens
+  On Subnet it allows us to burn native tokens
+*/
 module.exports = burnOrLock = async (from, amount) => {
 	let provider;
 	let signer;
@@ -64,11 +66,11 @@ module.exports = burnOrLock = async (from, amount) => {
 		/* Get bridge's ERC20 balance after lock */
 		const newBridgeBalance = await tokenContract.balanceOf(AVAX_BRIDGE_ADDRESS);
 		console.log(
-			"Updated balance of user after burn: ",
+			"Updated balance of user after lock: ",
 			ethers.utils.formatEther(newUserBalance)
 		);
 		console.log(
-			"Updated balance of bridge after burn: ",
+			"Updated balance of bridge after lock: ",
 			ethers.utils.formatEther(newBridgeBalance)
 		);
 	} else if (from === "subnet") {
@@ -84,8 +86,9 @@ module.exports = burnOrLock = async (from, amount) => {
 		const burnTx = await bridgeContract.burn(signer.address, {
 			value: ethers.utils.parseEther(amount),
 		});
-		await burnTx.wait();
+		const minedTx = await burnTx.wait();
 		console.log("Successfully burned amount on subnet: ", amount);
+		console.log("At block: ", minedTx.blockNumber);
 
 		/* Get user's native token balance after burn */
 		const newUserBalance = await signer.getBalance();
@@ -97,3 +100,4 @@ module.exports = burnOrLock = async (from, amount) => {
 		return;
 	}
 };
+```
